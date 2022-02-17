@@ -49,6 +49,20 @@ app.post('/signup', async (req, res) => {
 })
 
 // Personal information stuff
+app.get('/personalInfo', async (req, res) => {
+  const body = req.body
+  const query = `SELECT * FROM ${TABLES.log_in} WHERE email= $1`
+  const values = [body.email]
+  const queryResult = await client.query(query, values)
+  res.send(queryResult)
+})
+app.post('/personalInfo', async (req, res) => {
+  const body = req.body
+  const query = `INSERT INTO ${TABLES.personal_info} (id, email, name, issue_at) VALUES ($1, $2, $3, $4);`
+  const values = [body.email]
+  const queryResult = await client.query(query, values)
+  res.send(queryResult)
+})
 
 // Useful data base info stuff
 
