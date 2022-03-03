@@ -1,25 +1,56 @@
 const express = require('express')
 const { Pool } = require('pg')
 const { v4: uuidv4 } = require('uuid')
+const redis = require('redis');
 
+const params = {
+  redisPort : process.env.REDIS_PORT,
+  redisURL : process.env.REDIS_URL,
+  postgresUser: process.env.PGUSER,
+  pgHost: process.env.PGHOST,
+  pgDatabase: process.env.PGDATABASE,
+  pgPassword: process.env.PGPASSWORD,
+  pgPort: process.env.PGPORT,
+  serverPort: process.env.PORT
+}
+
+// server middleware
 const app = express()
 app.use(express.json());
-const port = process.env.PORT || 3000
-const client = new Pool({
-    user: 'user' || process.env.PGUSER,
-    host: 'localhost' || process.env.PGHOST,
-    database: 'user' || process.env.PGDATABASE,
-    password: 'password123' || process.env.PGPASSWORD,
-    port: 5432 || process.env.PGPORT
-  })
+const port = params.serverPort || 4000
 
+// postgres stuff
+const client = new Pool({
+  user: 'user' || process.env.PGUSER,
+  host: 'localhost' || process.env.PGHOST,
+  database: 'user' || process.env.PGDATABASE,
+  password: 'password123' || process.env.PGPASSWORD,
+  port: 5432 || process.env.PGPORT
+})
 
 const TABLES = {
     log_in: 'log_in',
     personal_info: 'personal_info'
 }
 
-app.get('/status', (req, res) => {
+
+const redisClient = redis.createClient(6379 || params.redisPort,'localhost' || params.redisURL);
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+
+// Redis client
+const writeKey = async (key, value) => {
+  await redisClient.connect()
+  redisClient.set(key, value).catch(err => console.log("Error on setting redis key"))
+
+  console.log(`Writing Property : ${key} with value: ${value}`);
+}
+
+const getKey = async (key) => {
+  await redisClient.connect()
+  return redisClient.get(key).catch(err => console.log("Error on getting redis key"))
+}
+
+app.get('/status', (_, res) => {
   res.send('Alive')
 })
 
@@ -59,12 +90,20 @@ app.get('/personalInfo', async (req, res) => {
 app.post('/personalInfo', async (req, res) => {
   const body = req.body
   const query = `INSERT INTO ${TABLES.personal_info} (id, email, name, issue_at) VALUES ($1, $2, $3, $4);`
-  const values = [body.email]
+  const values = [uuidv4(), body.email, body.name, currentTime ]
   const queryResult = await client.query(query, values)
   res.send(queryResult)
 })
 
-// Useful data base info stuff
+// Redis SET / GET
+app.post('/publicKey', async (req,res) => {
+  const body = req.body
+  writeKey(body.key, body.value).then(_ => res.sendStatus(200))
+})
+app.get('/publicKey', async (req,res) => {
+  const body = req.body
+  getKey(body.key).then(values => res.send(values))
+})
 
 
 app.listen(port, () => {
