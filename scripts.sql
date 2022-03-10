@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS log_in, personal_info, data_requester, data_provider;
+DROP TABLE IF EXISTS log_in, user_info, data_provider, data_market, data_consumer;
 CREATE TABLE log_in(
 	id UUID NOT NULL,
    	email VARCHAR(500) UNIQUE NOT NULL,
@@ -7,34 +7,51 @@ CREATE TABLE log_in(
    PRIMARY KEY ( id )
 );
 
-CREATE TABLE personal_info (
+CREATE TABLE user_info (
     id UUID NOT NULL,
     email VARCHAR(500) NOT NULL,
-    name VARCHAR(500),
+    user_name VARCHAR(500),
 	issue_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY(email) REFERENCES log_in(email)
-);
-
-CREATE TABLE data_requester (
-    id UUID NOT NULL,
-    personal_info_id UUID NOT NULL,
-    url_link VARCHAR(500),
-    iam_role VARCHAR(500),
-	insert_at TIMESTAMP NOT NULL,
-	modify_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY(personal_info_id) REFERENCES personal_info(id)
+	modified_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
 );
 
 CREATE TABLE data_provider (
     id UUID NOT NULL,
-    provider VARCHAR(500) NOT NULL,
-    personal_info_id UUID NOT NULL,
-    public_key_URL VARCHAR(500),
+    user_info_id VARCHAR(500) NOT NULL,
 	insert_at TIMESTAMP NOT NULL,
 	modify_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY(personal_info_id) REFERENCES personal_info(id)
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE data_market (
+    id UUID NOT NULL,
+	data_provider_id UUID NOT NULL,
+    data_base_name VARCHAR(500) NOT NULL,
+    data_base_URL VARCHAR(500) NOT NULL,
+    URL_to_IAM_key VARCHAR(500) NOT NULL,
+    data_restriction_id UUID,
+	insert_at TIMESTAMP NOT NULL,
+	modify_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE data_restriction (
+    id UUID NOT NULL,
+	restrictions VARCHAR(500) NOT NULL,
+	insert_at TIMESTAMP NOT NULL,
+	modify_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
+);
+
+
+CREATE TABLE data_consumer (
+    id UUID NOT NULL,
+    user_info_id UUID NOT NULL,
+    data_market_id UUID,
+    data_restriction_id UUID,
+	insert_at TIMESTAMP NOT NULL,
+	modify_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
 );
 

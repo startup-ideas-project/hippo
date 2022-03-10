@@ -1,4 +1,5 @@
 const express = require('express')
+const cors = require('cors')
 const { Pool } = require('pg')
 const { v4: uuidv4 } = require('uuid')
 const redis = require('redis');
@@ -14,9 +15,14 @@ const params = {
   serverPort: process.env.PORT
 }
 
+const corsOptions = {
+  origin: '*'
+}
+
 // server middleware
 const app = express()
 app.use(express.json());
+app.use(cors(corsOptions));
 const port = params.serverPort || 4000
 
 // postgres stuff
@@ -30,7 +36,11 @@ const client = new Pool({
 
 const TABLES = {
     log_in: 'log_in',
-    personal_info: 'personal_info'
+    user_info: 'user_info',
+    data_provider: 'data_provider',
+    data_market: 'data_market',
+    data_restriction: 'data_restriction',
+    data_consumer: 'data_consumer'
 }
 
 
@@ -80,19 +90,47 @@ app.post('/signup', async (req, res) => {
 })
 
 // Personal information stuff
-app.get('/personalInfo', async (req, res) => {
+app.get('/user-info', async (req, res) => {
   const body = req.body
-  const query = `SELECT * FROM ${TABLES.log_in} WHERE email= $1`
+  const query = `SELECT * FROM ${TABLES.user_info} WHERE email= $1`
   const values = [body.email]
   const queryResult = await client.query(query, values)
   res.send(queryResult)
 })
-app.post('/personalInfo', async (req, res) => {
+app.post('/user-info', async (req, res) => {
   const body = req.body
-  const query = `INSERT INTO ${TABLES.personal_info} (id, email, name, issue_at) VALUES ($1, $2, $3, $4);`
-  const values = [uuidv4(), body.email, body.name, currentTime ]
+  const query = `INSERT INTO ${TABLES.user_info} (id, email, name, issue_at) VALUES ($1, $2, $3, $4);`
+
+  const uuid = uuidv4()
+  const values = [uuid, body.email, body.name, currentTime ]
+  client
+    .query(query, values)
+    .then(_ => res.send(uuid))
+    .catch(err => console.log(err))
+})
+
+// Data Marketplace
+app.get('/data-marketplace', async (req, res) => {
+  const body = req.body
+  const query = `SELECT * FROM ${TABLES.data_market} WHERE data_provider_id= $1 && data_base_name=$2`
+  const values = [body.data_provider_id, body.data_base_name]
   const queryResult = await client.query(query, values)
   res.send(queryResult)
+})
+app.post('/data-marketplace', async (req, res) => {
+  const body = req.body
+  console.log(body)
+  const currentTime = new Date().toISOString()
+  const query = `INSERT INTO ${TABLES.data_market} (id, data_provider_id, data_base_name,
+    data_base_URL, URL_to_IAM_key, insert_at, modify_at) VALUES ($1, $2, $3, 
+    $4, $5, $6, $7);`
+  const uuid = uuidv4()
+  const values = [uuid, body.data_provider_id, body.data_base_name,
+    body.data_base_url, body.URL_to_IAM_key, currentTime, currentTime ]
+  client
+      .query(query, values)
+      .then(_ => res.send(uuid))
+      .catch(err => console.log(err))
 })
 
 // Redis SET / GET
