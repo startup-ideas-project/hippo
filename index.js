@@ -3,6 +3,7 @@ const cors = require('cors')
 const { Pool } = require('pg')
 const { v4: uuidv4 } = require('uuid')
 const redis = require('redis');
+const { RDSClient, AddRoleToDBClusterCommand } = require("@aws-sdk/client-rds");
 
 const params = {
   redisPort : process.env.REDIS_PORT,
@@ -40,7 +41,8 @@ const TABLES = {
     data_provider: 'data_provider',
     data_market: 'data_market',
     data_restriction: 'data_restriction',
-    data_consumer: 'data_consumer'
+    data_consumer: 'data_consumer',
+    data_requested: 'data_requested'
 }
 
 
@@ -110,16 +112,13 @@ app.post('/user-info', async (req, res) => {
 })
 
 // Data Marketplace
-app.get('/data-marketplace', async (req, res) => {
-  const body = req.body
-  const query = `SELECT * FROM ${TABLES.data_market} WHERE data_provider_id= $1 && data_base_name=$2`
-  const values = [body.data_provider_id, body.data_base_name]
-  const queryResult = await client.query(query, values)
-  res.send(queryResult)
+app.post('/data-marketplace', async (req, res) => {
+  const query = `SELECT * FROM ${TABLES.data_market}`
+  const queryResult = await client.query(query, [])
+  res.send(queryResult.rows)
 })
 app.post('/data-marketplace', async (req, res) => {
   const body = req.body
-  console.log(body)
   const currentTime = new Date().toISOString()
   const query = `INSERT INTO ${TABLES.data_market} (id, data_provider_id, data_base_name,
     data_base_URL, URL_to_IAM_key, insert_at, modify_at) VALUES ($1, $2, $3, 
@@ -131,6 +130,64 @@ app.post('/data-marketplace', async (req, res) => {
       .query(query, values)
       .then(_ => res.send(uuid))
       .catch(err => console.log(err))
+})
+
+
+// Data request
+app.get('/data-request/requestId/:requestId', async (req, res) => {
+  const queryParams = req.params.requestId
+  const query = `SELECT * FROM ${TABLES.data_requested} WHERE id= $1`
+  const values = [queryParams.data_request_id, ]
+  const queryResult = await client.query(query, values)
+  res.send(queryResult.rows)
+})
+app.get('/data-request/provider/:providerId', async (req, res) => {
+  const providerId = req.params.providerId
+  const query = `SELECT * FROM ${TABLES.data_requested} WHERE data_provider_id = $1`
+  const values = [providerId]
+  const queryResult = await client.query(query, values)
+  res.send(queryResult.rows)
+})
+app.post('/data-request', async (req, res) => {
+  const body = req.body
+  // get data_market from data_market_id
+  const queryMarket = `SELECT * FROM ${TABLES.data_market} WHERE id = $1`
+  const queryMarketValues = [body.data_market_id]
+  const queryMarketResults = await client.query(queryMarket, queryMarketValues)
+  const dataMarket = queryMarketResults.rows[0]
+  const currentTime = new Date().toISOString()
+  const query = `INSERT INTO ${TABLES.data_requested} (id, data_provider_id, consumer_id, data_market_id, 
+    data_base_name, isApproved,
+    insert_at, modify_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`
+  const uuid = uuidv4()
+  const values = [uuid, dataMarket.data_provider_id, body.consumer_id,
+    body.data_market_id, dataMarket.data_base_name,
+    body.isApproved,currentTime, currentTime ]
+  client
+      .query(query, values)
+      .then(_ => res.send(uuid))
+      .catch(err => console.log(err))
+})
+app.put('/data-request', async (req, res) => {
+  const isApprovedStatus = {
+    pending,
+    approved,
+    rejected
+  }
+  const body = req.body
+  const currentTime = new Date().toISOString()
+  const query = `UPDATE ${TABLES.data_requested} SET isApproved = $1, modify_at= $2 WHERE id = $3;`
+  const values = [body.uuid, currentTime, isApprovedStatus[body.isApproved] ]
+  client
+      .query(query, values)
+      .then(_ => res.send(uuid))
+      .catch(err => console.log(err))
+})
+
+// Query data
+app.post('/query-data', async (req, res) => {
+  const body = req.body
+
 })
 
 // Redis SET / GET
