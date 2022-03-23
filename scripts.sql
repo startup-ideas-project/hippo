@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS log_in, user_info, data_provider, data_market, data_consumer, data_requested;
+DROP TABLE IF EXISTS iam_management, data_requested, log_in, user_info, data_provider, data_market, data_consumer;
 CREATE TABLE log_in(
 	id UUID NOT NULL,
    	email VARCHAR(500) UNIQUE NOT NULL,
@@ -55,11 +55,23 @@ CREATE TABLE data_consumer (
     PRIMARY KEY (id)
 );
 
-CREATE TABLE data_requested(
+CREATE TABLE data_requested (
     id UUID NOT NULL,
     data_provider_id UUID NOT NULL,
     consumer_id UUID NOT NULL,
+	data_market_id UUID NOT NULL,
     data_base_name VARCHAR(500) NOT NULL,
+	isApproved VARCHAR(500),
 	insert_at TIMESTAMP NOT NULL,
 	modify_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE iam_management(
+    id UUID NOT NULL,
+    data_provider_id UUID NOT NULL,
+    data_market_id uuid NOT NULL,
+	insert_at TIMESTAMP NOT NULL,
+	modify_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
 )
